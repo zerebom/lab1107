@@ -1,0 +1,4 @@
+---
+DIR:
+ - DATA: /home/kakeya/Desktop/higuchi/data
+ - EXPERIMENTS: ./experiment
