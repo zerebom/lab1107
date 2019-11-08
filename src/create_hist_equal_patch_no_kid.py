@@ -2,15 +2,16 @@ import SimpleITK as sitk
 import numpy as np
 import pathlib
 from tqdm import tqdm
-
+import numpy.ma as ma
+import glob
 #/home/higuchi/Desktop/kits19/data/case_00000/imaging.nii.gz
 #/home/higuchi/Desktop/kits19/data/case_00000/segmentation.nii.gz
 
 '''
 for i in `seq -w 000 160`; do
-cd /home/kakeya/Desktop/higuchi/DNP/data/00${i}
-sudo python3 /home/kakeya/Desktop/higuchi/DNP/src/create_patch.py SE2.nii.gz SE3.nii.gz kidney.nii.gz CCRCC.nii.gz cyst.nii.gz --size 60 60 20
-sudo python3 /home/kakeya/Desktop/higuchi/DNP/src/create_patch.py SE2.nii.gz SE3.nii.gz kidney.nii.gz CCRCC.nii.gz cyst.nii.gz --size 48 48 16
+cd /home/kakeya/Desktop/higuchi/data/00${i}
+sudo python3 /home/kakeya/Desktop/higuchi/20191107/src/create_hist_equal_patch.py SE2.nii.gz SE3.nii.gz kidney.nii.gz CCRCC.nii.gz cyst.nii.gz --size 60 60 20
+sudo python3 /home/kakeya/Desktop/higuchi/20191107/src/create_hist_equal_patch.py SE2.nii.gz SE3.nii.gz kidney.nii.gz CCRCC.nii.gz cyst.nii.gz --size 48 48 16
 pwd
 
 done
@@ -24,29 +25,59 @@ def ParseArgs():
     parser.add_argument('image_volume_list', nargs=2)
     parser.add_argument('label_volume_list', nargs=3)
     # nargs...受け取る引数の数。?なら0 or 1こ
-    parser.add_argument('--exclude_area', nargs='?')
-    parser.add_argument('--predict_volume', default='', nargs='?')
     parser.add_argument('--size', nargs=3, type=int)
-    # parser.add_argument("--input_size", help="Input Network Patch Size", default=[144, 144, 1], nargs='+', type=int)
-    # parser.add_argument("--output_size", help="Output Network Patch Size", default=[36, 36, 1], nargs='+', type=int)
     parser.add_argument("--onehot", help="Whether or not to Onehot Vector is Save data", default=False, action='store_false')
+    parser.add_argument("--suffix",type=str,default='hist_equal_05')
+    
     args = parser.parse_args()
     return args
-
 def ValidateArgs(args):
+    dirs=glob.glob('./*')
+    if f"./tumor_{'x'.join(map(str, args.size))}_{args.suffix}" in dirs:
+
+        print('already exist patch dir')
+        return False
+
     for image_volume in args.image_volume_list:
         if not pathlib.Path(image_volume).is_file():
             print(f'Image data({image_volume}) is not file.')
             return False
+    if not pathlib.Path('kidney.nii.gz'):
+        print('no kidney voxel')
+        return False
+
     for i, label_volume in enumerate(args.label_volume_list):
         if not pathlib.Path(label_volume).is_file():
             args.label_volume_list[i] = None
             print(f'Label data({label_volume}) is not file.')
-            return False
 
     return True
 
 
+def histgram_equalization(whole_array,ROI_array,vmin=-750,vmax=750,alpha=0.5):
+    whole_array = np.clip(whole_array, vmin, vmax)
+    whole_array+=vmax
+    mask_whole_array=ma.masked_where(ROI_array==0, whole_array)
+    
+    ctRange = vmax-vmin +1
+    HIST = np.array([0.0]*ctRange)
+    roi_hist, _  = np.histogram(mask_whole_array[~mask_whole_array.mask], ctRange, [0, ctRange])
+    
+    #1に正規化する
+    HIST = roi_hist/roi_hist.sum()
+    #一様分布を混ぜる
+    HIST = HIST *  alpha+(1 - alpha) / 1500
+    #累積和を求める
+    cdf = HIST.cumsum()
+    #度数が0のところは処理しないというマスクを作成する
+    mask_cdf = np.ma.masked_equal(cdf,0)
+    standered_mask_cdf = (mask_cdf - mask_cdf.min())/(mask_cdf.max()-mask_cdf.min())
+    standered_mask_cdf = 1500*standered_mask_cdf
+    standered_mask_cdf = np.ma.filled(standered_mask_cdf,0).astype('int64')
+
+    whole_array=whole_array.astype(int)
+    new_whole_array=standered_mask_cdf[whole_array] - 750
+    return new_whole_array
 
 import math
 def getListCropPoint(read_range, pad_range):
@@ -76,8 +107,8 @@ def saveNPY(array, save_path):
 
 def main(args):
     #make dir
-    save_directory = pathlib.Path(f"./tumor_{'x'.join(map(str, args.size))}")
-    if len(list(save_directory.glob('*')))>0:
+    save_directory = pathlib.Path(f"./tumor_{'x'.join(map(str, args.size))}_{args.suffix}")
+    if save_directory.is_dir:
         assert EnvironmentError('savedir already contains patches.')
 
     save_directory.mkdir(exist_ok=True)
@@ -89,9 +120,12 @@ def main(args):
     tmp_array = sitk.GetArrayFromImage(image_list[0])
     #タプルを足して4次元にしている...?
     image_array = np.zeros(tmp_array.shape + (len(image_list),), dtype=tmp_array.dtype)
+    kid_aray=sitk.GetArrayFromImage(sitk.ReadImage('kidney.nii.gz'))
+
     for i, image in enumerate(image_list):
       # add channel
-      image_array[..., i] = sitk.GetArrayFromImage(image)
+      SE_array=sitk.GetArrayFromImage(image)
+      image_array[..., i] = histgram_equalization(SE_array,kid_aray,vmin=-750,vmax=750,alpha=0.5)
 
     label_array = np.zeros(tmp_array.shape, dtype=np.int16)
     for i, label in enumerate(label_list):
@@ -100,30 +134,14 @@ def main(args):
             label_array += sitk.GetArrayFromImage(label) * 2 ** i
     # label_array[label_array > 0] = 1
 
-    #exclude area
-    if args.exclude_area and pathlib.Path(args.exclude_area).is_file():
-        exclude_array = sitk.GetArrayFromImage(sitk.ReadImage(args.exclude_area))
-    else:
-        exclude_array = np.zeros(label_array.shape, dtype=label_array.dtype)
-    # no use
-    if pathlib.Path(args.predict_volume).is_file():
-        predict_array = sitk.GetArrayFromImage(sitk.ReadImage(args.predict_volume))
-        predict_array = (predict_array > 0).astype(label_array.dtype)
-    else:
-        predict_array = np.zeros(label_array.shape, dtype=label_array.dtype)
-
     patch_index = 0
 
     # パッチの読み取り範囲をOriginとサイズから、最小のボックスになるように調整する
-    # lower = np.fmax([0,0,0], label.TransformPhysicalPointToIndex(image.TransformIndexToPhysicalPoint((0,0,0))))
-    # upper = np.fmin(label.GetSize(), label.TransformPhysicalPointToIndex(image.TransformIndexToPhysicalPoint(image.GetSize())))
     read_range = image.GetSize()
 
     # パディングした全領域を出力パッチサイズでラスタスキャンする
     # 出力パッチサイズで割り切れずはみ出してしまう領域は、均等にずらして確保する
     # TODO:Augmentation内でクロップするほうがよさそう？
-    # z_crop_point = getListCropPoint(read_range[0]-args.size[2], args.size[2]//5)
-    # args[2] is overlap stride
     z_crop_point = getListCropPoint(read_range[0]-args.size[2], args.size[2]//2)
     y_crop_point = getListCropPoint(read_range[1]-args.size[1], args.size[1]//5)
     x_crop_point = getListCropPoint(read_range[2]-args.size[0], args.size[0]//5)
@@ -131,9 +149,8 @@ def main(args):
     def make_patch(x, y, z, patch_index):
         #　ラベルはネットワークの出力パッチサイズの大きさでクロップする
         crop_label   =   label_array[x:x+args.size[0], y:y+args.size[1], z:z+args.size[2]]
-        crop_exclude = exclude_array[x:x+args.size[0], y:y+args.size[1], z:z+args.size[2]]
 
-        # バッチ内に腫瘍領域が存在しない
+        # バッチ内に腫瘍領域が全体の1％しかない場合、パッチを作らない
         # パッチ内に除外領域が含まれる
         # 腫瘍領域がパッチボクセルの 80% 以上
         if (crop_label!=0).sum() <= np.prod(args.size) * 0.01:
@@ -159,38 +176,9 @@ def main(args):
 
         save_vol_path = save_directory / f'patch_image_{patch_index}.npy'
         saveNPY(crop_vol, str(save_vol_path))              
-                                                           
-    def make_patch_with_pred(x, y, z, patch_index):
-        #　ラベルはネットワークの出力パッチサイズの大きさでクロップする
-        crop_label   =   label_array[z:z+args.size[2], y:y+args.size[1], x:x+args.size[0]]
-        crop_exclude = exclude_array[z:z+args.size[2], y:y+args.size[1], x:x+args.size[0]]
-        crop_predict = predict_array[z:z+args.size[2], y:y+args.size[1], x:x+args.size[0]]
+                                                        
 
-        # パッチ内に検出領域が存在しない
-        # パッチ内に除外領域が含まれる
-        if crop_predict.sum() == 0 \
-                or crop_exclude.sum() != 0:
-            return
-
-        if args.onehot:
-            crop_label = getOnehotVector(crop_label)
-            save_seg_path = save_directory / f'patch_onehot_{patch_index}.npy'
-        else:
-            save_seg_path = save_directory / f'patch_no_onehot_{patch_index}.npy'
-        saveNPY(crop_label, str(save_seg_path))
-
-        #　ボリュームはネットワークの入力パッチサイズの大きさでクロップする
-        crop_vol = image_array[z:z+args.size[2],
-                               y:y+args.size[1],
-                               x:x+args.size[0]]
-        crop_vol_tmp = np.zeros(crop_vol.shape[:-1] + (crop_vol.shape[-1]+1,), dtype=crop_vol.dtype)
-        crop_vol_tmp[..., :crop_vol.shape[-1]] = crop_vol
-        crop_vol_tmp[..., :-1] = crop_predict[..., np.newaxis]
-
-        save_vol_path = save_directory / f'patch_image_{patch_index}.npy'
-        saveNPY(crop_vol_tmp, str(save_vol_path))
-
-    patch_method = make_patch if predict_array.sum() == 0 else make_patch_with_pred
+    patch_method = make_patch 
 
     for z in tqdm(z_crop_point):
         for y in y_crop_point:
