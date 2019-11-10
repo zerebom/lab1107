@@ -10,6 +10,7 @@ CID:
 PATCH_DIR:
  TRAIN: tumor_60x60x20_hist_equal_05
  VAL: tumor_48x48x16_hist_equal_05
-PATCH_SHAPE: [48,48,16,2]
+PATCH_SHAPE: [48,48,16,1]
 BATCH_SIZE: 16
-GENERATOR: Generator
+GENERATOR: SingleGenerator
+           
