@@ -8,10 +8,23 @@ import glob
 #/home/higuchi/Desktop/kits19/data/case_00000/segmentation.nii.gz
 
 '''
+間違えて途中まで作っちゃったとき↓
+sudo rm -rf ./*/tumor*standard*
+'''
+'''
+for i in `seq -w 000 160`; do
+cd /home/higuchi/Desktop/higuchi/data/00${i}
+pwd
+sudo python3 /home/higuchi/Desktop/higuchi/lab1107/src/create_hist_equal_patch.py SE2.nii.gz SE3.nii.gz kidney.nii.gz CCRCC.nii.gz cyst.nii.gz --size 60 60 20 -st -sf standard05
+sudo python3 /home/higuchi/Desktop/higuchi/lab1107/src/create_hist_equal_patch.py SE2.nii.gz SE3.nii.gz kidney.nii.gz CCRCC.nii.gz cyst.nii.gz --size 48 48 16 -st -sf standard05
+'''
+
+
+'''
 for i in `seq -w 000 160`; do
 cd /home/kakeya/Desktop/higuchi/data/00${i}
-sudo python3 /home/kakeya/Desktop/higuchi/20191107/src/create_hist_equal_patch.py SE2.nii.gz SE3.nii.gz kidney.nii.gz CCRCC.nii.gz cyst.nii.gz --size 60 60 20
-sudo python3 /home/kakeya/Desktop/higuchi/20191107/src/create_hist_equal_patch.py SE2.nii.gz SE3.nii.gz kidney.nii.gz CCRCC.nii.gz cyst.nii.gz --size 48 48 16
+sudo python3 /home/kakeya/Desktop/higuchi/20191107/src/create_hist_equal_patch.py SE2.nii.gz SE3.nii.gz kidney.nii.gz CCRCC.nii.gz cyst.nii.gz --suffix standard05 --size 60 60 20
+sudo python3 /home/kakeya/Desktop/higuchi/20191107/src/create_hist_equal_patch.py SE2.nii.gz SE3.nii.gz kidney.nii.gz CCRCC.nii.gz cyst.nii.gz --suffix standard05 --size 48 48 16
 pwd
 
 done
@@ -26,8 +39,9 @@ def ParseArgs():
     parser.add_argument('label_volume_list', nargs=3)
     # nargs...受け取る引数の数。?なら0 or 1こ
     parser.add_argument('--size', nargs=3, type=int)
+    parser.add_argument('-st','--standardization',action='store_true')
     parser.add_argument("--onehot", help="Whether or not to Onehot Vector is Save data", default=False, action='store_false')
-    parser.add_argument("--suffix",type=str,default='hist_equal_05')
+    parser.add_argument('-sf',"--suffix",type=str,default='hist_equal_05')
     
     args = parser.parse_args()
     return args
@@ -53,6 +67,12 @@ def ValidateArgs(args):
 
     return True
 
+#-----------------new preprocess function --------------------------- 
+def standardization(x, axis = None):
+    xmean = x.mean(axis=axis, keepdims=True)
+    xstd  = np.std(x, axis=axis, keepdims=True)
+    new_x = (x-xmean)/xstd
+    return new_x
 
 def histgram_equalization(whole_array,ROI_array,vmin=-750,vmax=750,alpha=0.5):
     whole_array = np.clip(whole_array, vmin, vmax)
@@ -71,13 +91,15 @@ def histgram_equalization(whole_array,ROI_array,vmin=-750,vmax=750,alpha=0.5):
     cdf = HIST.cumsum()
     #度数が0のところは処理しないというマスクを作成する
     mask_cdf = np.ma.masked_equal(cdf,0)
-    standered_mask_cdf = (mask_cdf - mask_cdf.min())/(mask_cdf.max()-mask_cdf.min())
-    standered_mask_cdf = 1500*standered_mask_cdf
-    standered_mask_cdf = np.ma.filled(standered_mask_cdf,0).astype('int64')
+    standared_mask_cdf = (mask_cdf - mask_cdf.min())/(mask_cdf.max()-mask_cdf.min())
+    standared_mask_cdf = 1500*standared_mask_cdf
+    standared_mask_cdf = np.ma.filled(standared_mask_cdf,0).astype('int64')
 
     whole_array=whole_array.astype(int)
-    new_whole_array=standered_mask_cdf[whole_array] - 750
+    new_whole_array=standared_mask_cdf[whole_array] - 750
     return new_whole_array
+#-----------------new preprocess function ---------------------------
+
 
 import math
 def getListCropPoint(read_range, pad_range):
@@ -102,8 +124,13 @@ def saveMHA(array, image, save_path):
     save_image.SetDirection(image.GetDirection())
     sitk.WriteImage(save_image, save_path, True)
 
-def saveNPY(array, save_path):
-    np.save(save_path, array)
+def saveNPY(array, save_path,float=False):
+    if float:
+        array=array.astype(np.float16)
+        np.save(save_path, array)
+    else:
+        np.save(save_path, array)
+
 
 def main(args):
     #make dir
@@ -126,6 +153,8 @@ def main(args):
       # add channel
       SE_array=sitk.GetArrayFromImage(image)
       image_array[..., i] = histgram_equalization(SE_array,kid_aray,vmin=-750,vmax=750,alpha=0.5)
+      if args.standardization:
+          image_array=standardization(image_array)
 
     label_array = np.zeros(tmp_array.shape, dtype=np.int16)
     for i, label in enumerate(label_list):
@@ -175,7 +204,7 @@ def main(args):
                                z:z+args.size[2], :]        
 
         save_vol_path = save_directory / f'patch_image_{patch_index}.npy'
-        saveNPY(crop_vol, str(save_vol_path))              
+        saveNPY(crop_vol, str(save_vol_path),True)              
                                                         
 
     patch_method = make_patch 

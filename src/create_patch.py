@@ -6,11 +6,12 @@ from tqdm import tqdm
 #/home/higuchi/Desktop/kits19/data/case_00000/imaging.nii.gz
 #/home/higuchi/Desktop/kits19/data/case_00000/segmentation.nii.gz
 
+
 '''
 for i in `seq -w 000 160`; do
 cd /home/kakeya/Desktop/higuchi/DNP/data/00${i}
-sudo python3 /home/kakeya/Desktop/higuchi/DNP/src/create_patch.py SE2.nii.gz SE3.nii.gz kidney.nii.gz CCRCC.nii.gz cyst.nii.gz --size 60 60 20
-sudo python3 /home/kakeya/Desktop/higuchi/DNP/src/create_patch.py SE2.nii.gz SE3.nii.gz kidney.nii.gz CCRCC.nii.gz cyst.nii.gz --size 48 48 16
+sudo python3 /home/kakeya/Desktop/higuchi/DNP/src/create_patch.py SE2.nii.gz SE3.nii.gz kidney.nii.gz CCRCC.nii.gz cyst.nii.gz --size 60 60 20 -st --su
+sudo python3 /home/kakeya/Desktop/higuchi/DNP/src/create_patch.py SE2.nii.gz SE3.nii.gz kidney.nii.gz CCRCC.nii.gz cyst.nii.gz --size 48 48 16 -st 
 pwd
 
 done
