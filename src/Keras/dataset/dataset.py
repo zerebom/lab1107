@@ -98,6 +98,7 @@ class Generator(Sequence):
 
         X = np.array(image_list)
         Y = self._decode_binsys_labels(label_list)
+        X=X.astype(np.float32)
         #print('first',X.shape,Y.shape)
 
         # flagがTrueならaugmentをする。Xはクロップ、YはNorm

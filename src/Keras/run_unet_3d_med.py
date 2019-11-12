@@ -27,6 +27,8 @@ python3 /home/kakeya/Desktop/higuchi/20191021/Keras/src/run_unet_3d_med.py -wp /
 
 python3 run_unet_3d_med.py -ex tutorial -g 1 -wp /home/kakeya/Desktop/higuchi/20191107/experiment/tutorial/2019-11-07_23-30/weights-e016_unet_liver_tumor_and_cyst_3cls.hdf5
 python3 run_unet_3d_med.py -ex single_channel -g 0 -yml /home/kakeya/Desktop/higuchi/20191107/experiment/single_channel/setting.yml
+python3 run_unet_3d_med.py -ex standard05 -g 0 -yml /home/higuchi/Desktop/higuchi/lab1107/experiment/standard05/mini_setting.yml
+
 
 '''
 def ParseArgs():
