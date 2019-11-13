@@ -7,8 +7,9 @@ from itertools import product
 import argparse
 import scipy.ndimage
 import pathlib
-
-from unet_3d import UNet3D
+sys.path.append('/home/kakeya/Desktop/higuchi/20191107/src/Keras')
+from model.unet_3d import UNet3D
+import yaml
 
 args = None
 
@@ -27,6 +28,7 @@ def ParseArgs():
     parser.add_argument("--outfilename", default='pred_label.mha')
     parser.add_argument("-g", "--gpuid", help="ID of GPU to be used for segmentation. [default=0]", default=0, type=int)
     parser.add_argument('-c', '--class_num', type=int)
+    parser.add_argument('-yml','--setting_yml_path',type=str)
 
     args = parser.parse_args()
     return args
@@ -39,12 +41,6 @@ def ValidateArgs(args):
         if not pathlib.Path(predfile).exists():
             print(f'Patient CT data({predfile}) is not found.')
             return False
-    # if args.maskfile and not pathlib.Path(args.maskfile).exists():
-    #     print(f'Mask for dice calc file({args.maskfile}) is not found.')
-    #     return False
-    # if args.tumorfile and not pathlib.Path(args.maskfile).exists():
-    #     print(f'Tumor file({args.tumorfile}) is not found.')
-    #     return False
 
     return True
 
@@ -84,6 +80,11 @@ def SaveVolume(path, volume_array, ref_image):
     sitk.WriteImage(volume, str(path), True)
 
 def main(_):
+    with open(args.setting_yml_path) as file:
+        yml = yaml.load(file)
+        ROOT_DIR = yml['DIR']['ROOT']
+        patch_shape=yml['PATCH_SHAPE']
+
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
     config.allow_soft_placement = True
@@ -93,9 +94,9 @@ def main(_):
     with tf.device('/device:GPU:{}'.format(args.gpuid)):
         print('loading 3D U-net model ...', end='', flush=True)
         if not pathlib.Path(args.predfile).exists():
-            model = UNet3D((48, 48, 16, 2), args.class_num)
+            model = UNet3D(patch_shape, args.class_num)
         else:
-            model = UNet3D((48, 48, 16, 2), args.class_num)
+            model = UNet3D(patch_shape, args.class_num)
         print('loading weights...', end='', flush=True) 
         #error         
         model.load_weights(args.modelweightfile) 
@@ -118,11 +119,7 @@ def main(_):
     for i, image in enumerate(image_list):
         image_array[..., i] = sitk.GetArrayFromImage(image)
 
-    # print('loading input image {}...'.format(args.predfile), end='', flush=True)
-    # image = sitk.ReadImage(args.predfile)
-    # image_array = sitk.GetArrayFromImage(image)
-    # # spacing = image.GetSpacing()[::-1]
-    # shape = image.GetSize()
+
     shape = image_array.shape[:3]
 
     step = (patch_size / args.stepscale).astype(np.int8)
@@ -159,7 +156,6 @@ def main(_):
                     is_in_liver = is_in_liver and patchimagearray[..., -1].sum() != 0
                 
                 pavec = model.predict_on_batch(patchimagearray)[0] if is_in_liver else np.zeros(model.output_shape[1:])
-                # pavec = pavec.transpose((2,0,1,3))
                 
                 paarry[ix:ix+patch_size[0], iy:iy+patch_size[1], iz:iz+patch_size[2], :] += pavec
                 counterarr[ix:ix+patch_size[0], iy:iy+patch_size[1], iz:iz+patch_size[2], :] += \
@@ -174,23 +170,6 @@ def main(_):
     save_dir = pathlib.Path(args.save_dir)
     save_dir.mkdir(exist_ok=True, parents=True)
 
-    # # 背景の確率 Map
-    # background_probbability = paarry[..., 0]
-    # background_probbability[mask_array == 0] = 0
-    # SaveVolume(save_dir / f'{args.patient_id}_background_probability.mha', background_probbability, image)
-    # # HCC の確率 Map
-    # hcc_probability = paarry[..., 1]
-    # hcc_probability[mask_array == 0] = 0
-    # SaveVolume(save_dir / f'{args.patient_id}_hcc_probability.mha', hcc_probability, image)
-    # # cyst の確率 Map
-    # cyst_probability = paarry[..., 2]
-    # cyst_probability[mask_array == 0] = 0
-    # SaveVolume(save_dir / f'{args.patient_id}_cyst_probability.mha', cyst_probability, image)
-    # # angioma の確率 Map
-    # angioma_probability = paarry[..., 3]
-    # angioma_probability[mask_array == 0] = 0
-    # SaveVolume(save_dir / f'{args.patient_id}_angioma_probability.mha', angioma_probability, image)
-    # Argmax から求めた正解ラベル
     labelarr = paarry
     labelarr = np.argmax(paarry, axis=-1).astype(dtype=np.int8)
     # mask_array = extract_max_island(mask_array + labelarr)

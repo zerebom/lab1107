@@ -5,13 +5,13 @@ import warnings
 import sys
 warnings.filterwarnings('ignore')
 sys.path.append('/home/kakeya/Desktop/higuchi/20191107/src/Keras')
+from model.unet_3d import UNet3D
 import numpy as np
 import tensorflow as tf
 from pathlib import Path
 from callbacks import CometLogImageUploader, CustomizedLearningRateScheduler
 from AdaBound import AdaBoundOptimizer
 from dataset.dataset import Loader, Generator,SingleGenerator
-from model.unet_3d import UNet3D
 import yaml
 from Loss.loss_funcs import categorical_crossentropy, bg_recall, bg_precision, bg_dice, \
     hcc_recall, hcc_precision, hcc_dice, \
@@ -36,7 +36,7 @@ def ParseArgs():
     parser = argparse.ArgumentParser()
     parser.add_argument('-g','--gpu_number', default=1, type=int)
     parser.add_argument('-wp','--weight_path', type=str)
-    parser.add_argument('-ex','--experiment', type=str)
+    parser.add_argument('-ex','--experiment' , type=str)
     parser.add_argument('-yml','--setting_yml_path',type=str,default='/home/kakeya/Desktop/higuchi/20191107/experiment/sigle_channel/setting.yml')
     args = parser.parse_args()
     return args
@@ -65,7 +65,7 @@ def ConstructCallback(model,WEIGHT_SAVE_DIR):
 
     callbacks = []
     callbacks.append(tf.keras.callbacks.ModelCheckpoint(filepath=str(
-        weight_filename), save_best_only=False, save_weights_only=True))
+        weight_filename), save_best_only=True, save_weights_only=True))
     callbacks.append(tf.keras.callbacks.CSVLogger(str(results_filename)))
     # callbacks.append(CustomizedLearningRateScheduler(patience=10, decay=0.8))
 

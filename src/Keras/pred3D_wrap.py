@@ -1,34 +1,39 @@
 import subprocess
 import pathlib
 import os
+import yaml
+import argparse
 
-patient_ids = [
-       '115', '119', '121', '124', '126', '127', '134', '135', '136', '138', '140', '142', '145', '146', '147', '149', '150', '151', '152', '154', '157', '159'
-]
 
-exp_names = [
-    '1104_75epochs'
-]
+def ParseArgs():
+    # from distutils.util import strtobool
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-yml','--setting_yml_path',type=str,default='/home/kakeya/Desktop/higuchi/20191107/experiment/sigle_channel/setting.yml')
 
-for exp_name in exp_names:
-    root_dir =f'../experiments/{exp_name}'
-    os.makedirs(root_dir,exist_ok=True)
+    args = parser.parse_args()
+    return args
 
-    save_dir = f'{root_dir}/res'
+def get_yml(args):
+    with open(args.setting_yml_path) as file: 
+        return yaml.load(file)
+
+def main(args,yml):
+    patient_ids=yml['CID']['TEST']
+    OWN_DIR=yml['DIR']['OWN']
+    DATA_DIR=yml['DIR']['DATA']
+    WIGHT_PATH=yml['PRED_WEIGHT']
+    save_dir = f'{OWN_DIR}/res'
     os.makedirs(save_dir,exist_ok=True)
-    weights_file = f'/home/kakeya/Desktop/higuchi/20191021/Keras/src/weights/20191104/weights-e050_unet_liver_tumor_and_cyst_3cls.hdf5'
 
     for patient_id in patient_ids:
-        dir_name = f'/home/kakeya/Desktop/higuchi/data/00{patient_id}/'
-        mask_path = f'/home/kakeya/Desktop/higuchi/data/00{patient_id}/kidney.nii.gz'
-
-        #kid_volume = pathlib.Path(dir_name) / 'kidney.nii.gz'
-        #CCRCC_volume = pathlib.Path(dir_name) / 'CCRCC.nii.gz'
-        #cyst_volume = pathlib.Path(dir_name) / 'cyst.nii.gz'
+        dir_name = f'{DATA_DIR}/00{patient_id}/'
+        mask_path = f'{DATA_DIR}/00{patient_id}/kidney.nii.gz'
         SE2_volume = pathlib.Path(dir_name) / 'SE2.nii.gz'
         SE3_volume = pathlib.Path(dir_name) / 'SE3.nii.gz'
-
-        cmd = f'python3 pred3D_unet.py {weights_file} {SE2_volume} {SE3_volume} --save_dir={save_dir} --outfilename=00{patient_id}.nii.gz --stepscale=2 --class_num=4 --maskfile={mask_path}'
+        cmd = f'python3 pred3D_unet.py {WIGHT_PATH} {SE2_volume} {SE3_volume} -yml={args.setting_yml_path} --save_dir={save_dir} --outfilename=00{patient_id}.nii.gz --stepscale=2 --class_num=4 --maskfile={mask_path}'
         subprocess.call(cmd.split())
 
-
+if __name__ == "__main__":
+    args =ParseArgs()
+    yml=get_yml(args)
+    main(args,yml)
