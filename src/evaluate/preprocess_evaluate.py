@@ -5,6 +5,7 @@ from tqdm import tqdm
 import SimpleITK as sitk
 import numpy as np
 import os
+import yaml
 '''
 評価に必要なdirづくりをするコード
 expreriments/実験名/res直下に予測ラベルができてるので、
@@ -12,25 +13,28 @@ expreriments/実験名/ref dirを作成し、そこにraw_dataをcopyしてく�
 kits19/data/case_00000/segmentation.nii.gz -> /res/case00000.nii.gz となる
 python3 /home/kakeya/Desktop/higuchi/20191021/Keras/src/test/preprocess_evaluate.py /home/kakeya/Desktop/higuchi/20191021/Keras/experiments/1104_75epochs --ref_dir /home/kakeya/Desktop/higuchi/data
 '''
-ROOT_DIR='/home/kakeya/Desktop/higuchi/'
 
-def ValidateArgs(args):
-    if not (ROOT_DIR / args.experiments_dir).is_dir():
-        print(f'Experiments directory({(ROOT_DIR /args.experiments_dir)}) is not dir')
+def get_yml(args):
+    with open(args.setting_yml_path) as file:
+        return yaml.load(file)
+
+def ValidateArgs(args,yml):
+    OWN_DIR= Path(yml['DIR']['OWN'])
+    DATA_DIR= Path(yml['DIR']['DATA'])
+
+
+    if not OWN_DIR.is_dir():
+        print(f'Experiments directory({OWN_DIR}) is not dir')
         return False
-    if not args.ref_dir.is_dir():
-        print(f'Reference directory({args.ref_dir}) is not dir')
+    if not DATA_DIR.is_dir():
+        print(f'Reference directory({DATA_DIR}) is not dir')
         return False
     return True
 
 def ParseArgs():
     parser = argparse.ArgumentParser()
-    parser.add_argument('experiments_dir')
-    parser.add_argument('--ref_dir', default='/home/kakeya/Desktop/higuchi/data')
-
+    parser.add_argument('-yml','--setting_yml_path',type=str)
     args = parser.parse_args()
-    args.experiments_dir = Path(args.experiments_dir)
-    args.ref_dir = Path(args.ref_dir)
 
     return args
 def make_concat_label(kidney_path,CCRCC_path=None,cyst_path=None):
@@ -51,26 +55,27 @@ def make_concat_label(kidney_path,CCRCC_path=None,cyst_path=None):
     label=sitk.GetImageFromArray(label_array)
     return(label)
 
+def main (args,yml):
+    ROOT_DIR = Path(yml['DIR']['ROOT'])
+    DATA_DIR = Path(yml['DIR']['DATA'])
+    OWN_DIR= Path(yml['DIR']['OWN'])
 
-
-
-def main (args):
-    resorce_file_list=sorted((ROOT_DIR/args.experiments_dir/'res').glob('*.nii.gz'))
+    resorce_file_list=sorted((ROOT_DIR/OWN_DIR/'res').glob('*.nii.gz'))
     if len(resorce_file_list)==0:
         assert ValueError('resorce_file_list dosen`t find.')
-    os.makedirs(ROOT_DIR/args.experiments_dir/'ref',exist_ok=True)
+    os.makedirs(ROOT_DIR/OWN_DIR/'ref',exist_ok=True)
     for res in resorce_file_list:
         #.nii.gzはピリオドが二回あるので、splitで除去した
 
-        kidney_path=(args.ref_dir/res.name.split('.')[0]/'kidney.nii.gz')
-        ccrcc_path=(args.ref_dir/res.name.split('.')[0]/'CCRCC.nii.gz')
-        cyst_path=(args.ref_dir/res.name.split('.')[0]/'cyst.nii.gz')
+        kidney_path=(DATA_DIR/res.name.split('.')[0]/'kidney.nii.gz')
+        ccrcc_path=(DATA_DIR/res.name.split('.')[0]/'CCRCC.nii.gz')
+        cyst_path=(DATA_DIR/res.name.split('.')[0]/'cyst.nii.gz')
         label=make_concat_label(kidney_path,ccrcc_path,cyst_path)
-        sitk.WriteImage(label,str(ROOT_DIR/args.experiments_dir/'ref'/res.name))
-
+        sitk.WriteImage(label,str(ROOT_DIR/OWN_DIR/'ref'/res.name))
 
 
 if __name__ == "__main__":
     args =ParseArgs()
-    if ValidateArgs(args):
-        main(args)
+    yml=get_yml(args)
+    if ValidateArgs(args,yml):
+        main(args,yml)

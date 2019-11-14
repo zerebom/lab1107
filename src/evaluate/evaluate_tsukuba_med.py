@@ -3,29 +3,38 @@ import pathlib
 from tqdm import tqdm
 import SimpleITK as sitk
 import numpy as np
+import yaml
+from pathlib import Path
 '''
 The purpose of this is to evaluate med of tsukuba data.
 python3 /home/kakeya/Desktop/higuchi/20191021/Keras/src/test/evaluate_tsukuba_med.py /home/kakeya/Desktop/higuchi/20191021/Keras/experiments/1104_75epochs
 '''
+
+def get_yml(args):
+    with open(args.setting_yml_path) as file: 
+        return yaml.load(file)
+
 def ParseArgs():
     parser = argparse.ArgumentParser()
-    parser.add_argument('file_dir')
+    #dile_parser.add_argument('file_dir')
     parser.add_argument('--output_file', default='lesion_evaluation.csv')
+    parser.add_argument('-yml','--setting_yml_path',type=str)
     parser.add_argument('--res_path', default=None)
     
     args = parser.parse_args()
-    args.file_dir = pathlib.Path(args.file_dir)
     return args
 
-def ValidateArgs(args):
-    if not args.file_dir.is_dir():
-        print(f'Evaluated directory({args.file_dir}) is not found or not directory.')
+def ValidateArgs(args,yml):
+    OWN_DIR=Path(yml['DIR']['OWN'])
+
+    if not OWN_DIR.is_dir():
+        print(f'Evaluated directory({OWN_DIR}) is not found or not directory.')
         return False
-    if not (args.file_dir / 'ref').is_dir():
-        print(f'Reference directory({args.file_dir / "ref"}) is not found or not directory.')
+    if not (OWN_DIR / 'ref').is_dir():
+        print(f'Reference directory({OWN_DIR / "ref"}) is not found or not directory.')
         return False
-    if not (args.file_dir / 'res').is_dir():
-        print(f'Resource directory({args.file_dir / "res"}) is not found or not directory.')
+    if not (OWN_DIR / 'res').is_dir():
+        print(f'Resource directory({OWN_DIR / "res"}) is not found or not directory.')
         return False
 
     return True
@@ -108,10 +117,12 @@ def EvaluateMain(csv_file, reference_file, resource_file):
 
     return 0,0,0,0
 
-def main(args):
-    reference_file_list = sorted((args.file_dir / 'ref').glob('*.nii.gz'))
+def main(args,yml):
+    OWN_DIR=Path(yml['DIR']['OWN'])
+    reference_file_list = sorted((OWN_DIR / 'ref').glob('*.nii.gz'))
+    
 
-    with open(args.output_file, 'w') as f:
+    with open(OWN_DIR/args.output_file, 'w') as f:
         f.write('filename,label_name,existence,dice,recall,precision\n')
         score_per_case_list = []
 
@@ -119,7 +130,7 @@ def main(args):
             if args.res_path:
                 resource_file = pathlib.Path(args.res_path) / reference_file.name
             else:
-                resource_file = args.file_dir / 'res' / reference_file.name
+                resource_file = OWN_DIR / 'res' / reference_file.name
             if not resource_file.is_file():
                 tqdm.write(f'Resource file({resource_file}) is not found or not file.')
                 continue
@@ -134,5 +145,6 @@ def main(args):
 
 if __name__ == '__main__':
     args = ParseArgs()
-    if ValidateArgs(args):
-        main(args)
+    yml=get_yml(args)
+    if ValidateArgs(args,yml):
+        main(args,yml)
