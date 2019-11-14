@@ -18,9 +18,7 @@ args = None
 1114修正。
 作ったバッチ（前処理後）を用いて推論するようにする。
 '''
-
 # python pred3D.py "D:\okada_script\MHA_0802\00125\SE3\patient.mha" "D:\Code\unet3d\data\3dunet_2class.yml" "./log/latestweights.hdf5" --mask="D:\okada_script\MHA_0802\00125\SE3\肝臓.mha"
-
 
 def ParseArgs():
     parser = argparse.ArgumentParser()
@@ -33,7 +31,7 @@ def ParseArgs():
     parser.add_argument("--stepscale", help="Step scale for patch tiling.", default=1.0, type=float)
     parser.add_argument("--save_dir", default='./result')
     parser.add_argument("--outfilename", default='pred_label.mha')
-    parser.add_argument("-g", "--gpuid", help="ID of GPU to be used for segmentation. [default=0]", default=0, type=int)
+    parser.add_argument("-g", "--gpuid", help="ID of GPU to be used for segmentation. [default=0]", default=1, type=int)
     parser.add_argument('-c', '--class_num', type=int)
     parser.add_argument('-yml', '--setting_yml_path', type=str)
 
@@ -93,6 +91,7 @@ def SaveVolume(path, volume_array, ref_image):
 
 
 def histgram_equalization(image_array, mask_array, vmin=-750, vmax=750, alpha=0.5):
+
     image_array = np.clip(image_array, vmin, vmax)
     image_array += vmax
     mask_image_array = ma.masked_where(mask_array == 0, image_array)
@@ -113,6 +112,7 @@ def histgram_equalization(image_array, mask_array, vmin=-750, vmax=750, alpha=0.
     standared_mask_cdf = 1500 * standared_mask_cdf
     standared_mask_cdf = np.ma.filled(standared_mask_cdf, 0).astype('int64')
 
+
     image_array = image_array.astype(int)
     new_image_array = standared_mask_cdf[image_array] - 750
     return new_image_array
@@ -132,6 +132,7 @@ def main(_):
         patch_shape = yml['PATCH_SHAPE']
         LOCAL_HE= yml['LOCAL_HE'] if 'LOCAL_HE' in yml else False
         STANDARD = yml['STANDARD'] if 'STANDARD' in yml else False
+
 
 
     config = tf.ConfigProto()
@@ -166,15 +167,21 @@ def main(_):
     else:
         image_array = np.zeros(tmp_array.shape + (len(args.predfile_list) + 1,), dtype=tmp_array.dtype)
         image_array[..., -1] = (sitk.GetArrayFromImage(sitk.ReadImage(args.predfile)) > 0).astype(tmp_array.dtype)
-    for i, image in enumerate(image_list):
-        image_array[..., i] = sitk.GetArrayFromImage(image)
 
-    if LOCAL_HE:
-        mask_array = sitk.ReadImage(args.maskfile)
-        image_array = histgram_equalization(image_array, mask_array, alpha=0.5)
-    if STANDARD:
+    for i, image in enumerate(image_list):
+        print(sitk.GetArrayFromImage(image).shape)
+        tmp_im=sitk.GetArrayFromImage(image)
+        if LOCAL_HE:
+            mask_array = sitk.GetArrayFromImage(sitk.ReadImage(args.maskfile))
+            image_array[..., i] = histgram_equalization(tmp_im, mask_array, alpha=0.5)
+        else:
+            image_array[..., i] = tmp_im
+    if STANDARD==True:
         image_array=standardization(image_array)
 
+    if patch_shape[-1]==1:
+        image_array=image_array[...,0]
+        image_array=image_array[...,np.newaxis]
 
     shape = image_array.shape[:3]
 
@@ -208,7 +215,6 @@ def main(_):
             iy = iy if (iy + patch_size <= shape)[1] else (shape - patch_size)[1]
             for ix in range(0, shape[0], step[0]):
                 ix = ix if (ix + patch_size <= shape)[0] else (shape - patch_size)[0]
-
                 patchimagearray = image_array[ix:ix + patch_size[0], iy:iy + patch_size[1], iz:iz + patch_size[2], :]
                 patchimagearray = patchimagearray[np.newaxis, ...]  # .transpose((0,2,3,1,4))
 

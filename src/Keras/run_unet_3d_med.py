@@ -27,8 +27,8 @@ python3 /home/kakeya/Desktop/higuchi/20191021/Keras/src/run_unet_3d_med.py -wp /
 
 python3 run_unet_3d_med.py -ex tutorial -g 1 -wp /home/kakeya/Desktop/higuchi/20191107/experiment/tutorial/2019-11-07_23-30/weights-e016_unet_liver_tumor_and_cyst_3cls.hdf5
 python3 run_unet_3d_med.py -ex single_channel -g 0 -yml /home/kakeya/Desktop/higuchi/20191107/experiment/single_channel/setting.yml
-python3 run_unet_3d_med.py -ex standard05 -g 0 -yml /home/higuchi/Desktop/higuchi/lab1107/experiment/standard05/mini_setting.yml
-
+python3 run_unet_3d_med.py  -g 0 -yml /home/higuchi/Desktop/higuchi/lab1107/experiment/standard05/mini_setting.yml
+python3 run_unet_3d_med.py  -g 0 -yml /home/kakeya/Desktop/higuchi/20191107/experiment/lr01_epoch50_100/setting.yml
 
 '''
 
@@ -91,12 +91,16 @@ def main(args):
         yml = yaml.load(file)
         ROOT_DIR = yml['DIR']['ROOT']
         DATA_DIR = yml['DIR']['DATA']
-        WEIGHT_SAVE_DIR = f'{ROOT_DIR}/experiment/{args.experiment}'
+        WEIGHT_SAVE_DIR = yml['DIR']['OWN']
+        WEIGHT_PATH=yml['PRED_WEIGHT'] if 'PRED_WEIGHT' in yml else None
         train_cid = yml['CID']['TRAIN']
         val_cid = yml['CID']['VAL']
         train_patch = yml['PATCH_DIR']['TRAIN']
         val_patch = yml['PATCH_DIR']['VAL']
         patch_shape = yml['PATCH_SHAPE']
+        epochs =yml['EPOCH'] if 'EPOCH' in yml else 50
+        lr = yml['LR'] if 'LR' in yml else 1e-3
+        final_lr =yml['FINAL_LR'] if 'FINAL_LR' in yml else 1e-1
         BATCH_SIZE = yml['BATCH_SIZE']
         BATCH_GENERATOR = eval(yml['GENERATOR']) if 'GENERATOR' in yml else Generator
 
@@ -123,13 +127,13 @@ def main(args):
         # (self, input_shape, nclasses, use_bn=True, use_dropout=True)
         # num of channe2l is 2(SE2,SE3)
         model = UNet3D(patch_shape, 4)
-        if args.weight_path != None:
-            if Path(args.weight_path).is_file():
-                path = Path(args.weight_path)
+        if WEIGHT_PATH != None:
+            if Path(WEIGHT_PATH).is_file():
+                path = Path(WEIGHT_PATH)
                 initial_epoch = int(path.name.split('-')[1][1:4])
                 print('_' * 30)
-                print(f'load model weight from {args.weight_path}')
-                model.load_weights(os.path.join(args.weight_path))
+                print(f'load model weight from {WEIGHT_PATH}')
+                model.load_weights(os.path.join(WEIGHT_PATH))
         else:
             print('_' * 30)
             print('no load model weight')
@@ -141,13 +145,13 @@ def main(args):
 
         model.compile(loss={'segment': categorical_crossentropy},
                       loss_weights={'segment': 1.},
-                      optimizer=AdaBoundOptimizer(learning_rate=1e-3, final_lr=1e-1),
+                      optimizer=AdaBoundOptimizer(learning_rate=lr, final_lr=final_lr),
                       metrics={'segment': [bg_dice, hcc_dice, cyst_dice, angioma_dice]})
 
         model.fit_generator(train_generator, steps_per_epoch=len(train_generator), initial_epoch=initial_epoch,
                             validation_data=valid_generator, validation_steps=len(valid_generator),
                             callbacks=callbacks, workers=6, max_queue_size=12, use_multiprocessing=True,
-                            epochs=50, shuffle=False)
+                            epochs=epochs, shuffle=False)
 
 
 if __name__ == '__main__':

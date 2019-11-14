@@ -33,7 +33,7 @@ def main(args, yml):
         mask_path = f'{DATA_DIR}/00{patient_id}/kidney.nii.gz'
         SE2_volume = pathlib.Path(dir_name) / 'SE2.nii.gz'
         SE3_volume = pathlib.Path(dir_name) / 'SE3.nii.gz'
-        cmd = f'python3 pred3D_unet.py {WIGHT_PATH} {SE2_volume} {SE3_volume} -mask={mask_path} -yml={args.setting_yml_path} --save_dir={save_dir} --outfilename=00{patient_id}.nii.gz --stepscale=2 --class_num=4 --maskfile={mask_path}'
+        cmd = f'python3 pred3D_unet_med.py {WIGHT_PATH} {SE2_volume} {SE3_volume} -mask={mask_path} -yml={args.setting_yml_path} --save_dir={save_dir} --outfilename=00{patient_id}.nii.gz --stepscale=2 --class_num=4 --maskfile={mask_path}'
         subprocess.call(cmd.split())
 
 
