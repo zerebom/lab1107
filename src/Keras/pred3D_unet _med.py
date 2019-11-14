@@ -10,16 +10,23 @@ import pathlib
 sys.path.append('/home/kakeya/Desktop/higuchi/20191107/src/Keras')
 from model.unet_3d import UNet3D
 import yaml
+import numpy.ma as ma
 
 args = None
 
+'''
+1114修正。
+作ったバッチ（前処理後）を用いて推論するようにする。
+'''
 
 # python pred3D.py "D:\okada_script\MHA_0802\00125\SE3\patient.mha" "D:\Code\unet3d\data\3dunet_2class.yml" "./log/latestweights.hdf5" --mask="D:\okada_script\MHA_0802\00125\SE3\肝臓.mha"
+
+
 def ParseArgs():
     parser = argparse.ArgumentParser()
     parser.add_argument("modelweightfile", help="Trained model weights file (*.hdf5).")
     parser.add_argument("predfile_list", help="Prediction file (*.mha)", nargs='+')
-    parser.add_argument("--maskfile", help="Mask file (*.mha)")
+    parser.add_argument('-mask',"--maskfile", help="Mask file (*.nii.gz)")
     parser.add_argument("--tumorfile")
     parser.add_argument("--cystfile")
     parser.add_argument("--predfile", default='hogehuga')
@@ -48,7 +55,6 @@ def ValidateArgs(args):
 
 def extract_max_island(array):
     image = sitk.GetImageFromArray(array)
-
     cc = sitk.ConnectedComponent(image)
     stats = sitk.LabelIntensityStatisticsImageFilter()
     stats.Execute(cc, image)
@@ -86,11 +92,47 @@ def SaveVolume(path, volume_array, ref_image):
     sitk.WriteImage(volume, str(path), True)
 
 
+def histgram_equalization(image_array, mask_array, vmin=-750, vmax=750, alpha=0.5):
+    image_array = np.clip(image_array, vmin, vmax)
+    image_array += vmax
+    mask_image_array = ma.masked_where(mask_array == 0, image_array)
+
+    ctRange = vmax - vmin + 1
+    HIST = np.array([0.0] * ctRange)
+    roi_hist, _ = np.histogram(mask_image_array[~mask_image_array.mask], ctRange, [0, ctRange])
+
+    # 1に正規化する
+    HIST = roi_hist / roi_hist.sum()
+    # 一様分布を混ぜる
+    HIST = HIST * alpha + (1 - alpha) / 1500
+    # 累積和を求める
+    cdf = HIST.cumsum()
+    # 度数が0のところは処理しないというマスクを作成する
+    mask_cdf = np.ma.masked_equal(cdf, 0)
+    standared_mask_cdf = (mask_cdf - mask_cdf.min()) / (mask_cdf.max() - mask_cdf.min())
+    standared_mask_cdf = 1500 * standared_mask_cdf
+    standared_mask_cdf = np.ma.filled(standared_mask_cdf, 0).astype('int64')
+
+    image_array = image_array.astype(int)
+    new_image_array = standared_mask_cdf[image_array] - 750
+    return new_image_array
+
+
+def standardization(x, axis=None):
+    xmean = x.mean(axis=axis, keepdims=True)
+    xstd = np.std(x, axis=axis, keepdims=True)
+    new_x = (x - xmean) / xstd
+    return new_x
+
+
 def main(_):
     with open(args.setting_yml_path) as file:
         yml = yaml.load(file)
         ROOT_DIR = yml['DIR']['ROOT']
         patch_shape = yml['PATCH_SHAPE']
+        LOCAL_HE= yml['LOCAL_HE'] if 'LOCAL_HE' in yml else False
+        STANDARD = yml['STANDARD'] if 'STANDARD' in yml else False
+
 
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
@@ -112,6 +154,7 @@ def main(_):
     print(f'input_shape = {model.input_shape}')
     print(f'output_shape = {model.output_shape}')
 
+    # ここからパッチの用意。順番をちゃんともとの形に戻せるようにしないと行けない
     # get patch size
     patch_size = np.array(model.input_shape[1:4])
     # patch_size = patch_size[::-1]
@@ -126,20 +169,32 @@ def main(_):
     for i, image in enumerate(image_list):
         image_array[..., i] = sitk.GetArrayFromImage(image)
 
+    if LOCAL_HE:
+        mask_array = sitk.ReadImage(args.maskfile)
+        image_array = histgram_equalization(image_array, mask_array, alpha=0.5)
+    if STANDARD:
+        image_array=standardization(image_array)
+
+
     shape = image_array.shape[:3]
 
     step = (patch_size / args.stepscale).astype(np.int8)
     print('step = {}'.format(step))
 
     label = sitk.Image(image.GetSize(), sitk.sitkUInt8)
+    # 正解ラベルの入れ物
     labelarr = sitk.GetArrayFromImage(label)
     print('labelarr shape: {}'.format(labelarr.shape))
+
+    # オーバーラップの回数を記憶しているarr
     counterarr = sitk.GetArrayFromImage(sitk.Image(image.GetSize(), sitk.sitkVectorUInt8, model.output_shape[-1]))
+    # predictの生起確率を記憶するarr
     paarry = sitk.GetArrayFromImage(sitk.Image(image.GetSize(), sitk.sitkVectorFloat32, model.output_shape[-1]))
 
     if not args.maskfile or not pathlib.Path(args.maskfile).exists():
         mask_array = np.ones(labelarr.shape)
     else:
+        # maskを大きくしてから学習。
         mask_image = sitk.ReadImage(args.maskfile)
         dilate = sitk.BinaryDilateImageFilter()
         dilate.SetKernelRadius(3)
