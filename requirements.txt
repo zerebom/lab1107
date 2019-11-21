@@ -1,0 +1,9 @@
+numpy 
+pandas 
+matplotlib
+tensorflow-gpu
+SimpleITK
+plotly
+scikit-learn
+opencv-python
+pyyaml
