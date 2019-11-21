@@ -4,6 +4,7 @@ import pathlib
 from tqdm import tqdm
 import numpy.ma as ma
 import glob
+from pathlib import Path
 # /home/higuchi/Desktop/kits19/data/case_00000/imaging.nii.gz
 # /home/higuchi/Desktop/kits19/data/case_00000/segmentation.nii.gz
 
@@ -34,8 +35,8 @@ done
 '''
 for i in `seq -w 000 160`; do
 cd /home/kakeya/Desktop/higuchi/data/00${i}
-sudo python3 /home/kakeya/Desktop/higuchi/20191107/src/create_hist_equal_patch.py kld_SE2.nii.gz kld_SE3.nii.gz kidney.nii.gz CCRCC.nii.gz cyst.nii.gz --suffix KLD --size 60 60 20
-sudo python3 /home/kakeya/Desktop/higuchi/20191107/src/create_hist_equal_patch.py kld_SE2.nii.gz kld_SE3.nii.gz kidney.nii.gz CCRCC.nii.gz cyst.nii.gz --suffix KLD --size 48 48 16
+sudo python3 /home/kakeya/Desktop/higuchi/20191107/src/create_hist_equal_patch.py kld_SE2.nii.gz kld_SE3.nii.gz kidney.nii.gz CCRCC.nii.gz cyst.nii.gz -sd /home/kakeya/ssd/data/00${i} --suffix KLD --size 60 60 20
+sudo python3 /home/kakeya/Desktop/higuchi/20191107/src/create_hist_equal_patch.py kld_SE2.nii.gz kld_SE3.nii.gz kidney.nii.gz CCRCC.nii.gz cyst.nii.gz -sd /home/kakeya/ssd/data/00${i} --suffix KLD --size 48 48 16
 pwd
 
 done
@@ -51,6 +52,7 @@ def ParseArgs():
     parser.add_argument('label_volume_list', nargs=3)
     # nargs...受け取る引数の数。?なら0 or 1こ
     parser.add_argument('--size', nargs=3, type=int)
+    parser.add_argument('-sd','--save_dir',type=str)
     parser.add_argument('-he', '--hist_equal', action='store_true')
     parser.add_argument('-st', '--standardization', action='store_true')
     parser.add_argument("--onehot", help="Whether or not to Onehot Vector is Save data",
@@ -158,7 +160,12 @@ def saveNPY(array, save_path, float=False):
 
 def main(args):
     # make dir
-    save_directory = pathlib.Path(f"./tumor_{'x'.join(map(str, args.size))}_{args.suffix}")
+    if args.save_dir:
+        if not Path(args.save_dir).is_dir():
+            Path(args.save_dir).mkdir()
+        save_directory = pathlib.Path(f"{args.save_dir}/tumor_{'x'.join(map(str, args.size))}_{args.suffix}")
+    else:
+        save_directory = pathlib.Path(f"./tumor_{'x'.join(map(str, args.size))}_{args.suffix}")
     if save_directory.is_dir:
         assert EnvironmentError('savedir already contains patches.')
 

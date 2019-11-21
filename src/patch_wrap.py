@@ -4,6 +4,7 @@ import os
 import argparse
 import yaml
 '''
+パッチ作成もyml管理でやろうとしたコード。めんどくさくて休止
 TODO:setting.ymlにパッチのsuffixなども書いておく
 '''
 
