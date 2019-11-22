@@ -65,10 +65,10 @@ def main(args, yml):
     DATA_DIR = Path(yml['DIR']['DATA'])
     OWN_DIR = Path(yml['DIR']['OWN'])
 
-    resorce_file_list = sorted((ROOT_DIR / OWN_DIR / 'res').glob('*.nii.gz'))
+    resorce_file_list = sorted((OWN_DIR / 'res').glob('*.nii.gz'))
     if len(resorce_file_list) == 0:
         assert ValueError('resorce_file_list dosen`t find.')
-    os.makedirs(ROOT_DIR / OWN_DIR / 'ref', exist_ok=True)
+    os.makedirs(OWN_DIR / 'ref', exist_ok=True)
     for res in resorce_file_list:
         # .nii.gzはピリオドが二回あるので、splitで除去した
 
@@ -76,7 +76,7 @@ def main(args, yml):
         ccrcc_path = (DATA_DIR / res.name.split('.')[0] / 'CCRCC.nii.gz')
         cyst_path = (DATA_DIR / res.name.split('.')[0] / 'cyst.nii.gz')
         label = make_concat_label(kidney_path, ccrcc_path, cyst_path)
-        sitk.WriteImage(label, str(ROOT_DIR / OWN_DIR / 'ref' / res.name))
+        sitk.WriteImage(label, str(OWN_DIR / 'ref' / res.name))
 
 
 if __name__ == "__main__":

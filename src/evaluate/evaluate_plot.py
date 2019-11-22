@@ -98,6 +98,7 @@ def scatter_plot(df,x,y,text,size,title):
 
 def main(args):
     statistics_path='/home/kakeya/Desktop/higuchi/20191021/output/statistics.csv'
+    statistics_path='/home/higuchi/Desktop/higuchi/lab1107/output/csv/statistics.csv'
     with open(args.setting_yml_path) as file:
         yml = yaml.load(file)
         ROOT_DIR = yml['DIR']['ROOT']
@@ -107,6 +108,8 @@ def main(args):
 
     epoch_results_path= sorted(OWN_DIR.glob(f'**/epoch_results.csv'))[-1]
     epoch_df=pd.read_csv(epoch_results_path)
+    if not Path(OWN_DIR/'plot').is_dir():
+        Path(OWN_DIR/'plot').mkdir()
     acc_plot(epoch_df,OWN_DIR/'plot/dice.png')
 
     lesion_path=OWN_DIR/'lesion_evaluation.csv'
@@ -144,7 +147,7 @@ def main(args):
         f.write(f'病変ごとの精度_ccrcc:{ccrcc_acc1}\n')
         f.write(f'病変ごとの精度_cyst:{cys_acc1}\n')
         f.write(f'患者ごとの精度_ccrcc:{ccrcc_acc2}\n')
-        f.write(f'患者ごとの精度_cyst:{cys_acc2}\n」')
+        f.write(f'患者ごとの精度_cyst:{cys_acc2}\n')
 
     # scatter_plot(ccr_df,'log_kid','log_ccr','round_dice','dice','CCRCC_dice_with_dice')
     # scatter_plot(ccr_df,'log_kid','log_ccr','cid','dice','CCRCC_dice_with_cid')
