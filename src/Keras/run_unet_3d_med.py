@@ -17,6 +17,7 @@ from Loss.loss_funcs import categorical_crossentropy, bg_recall, bg_precision, b
     hcc_recall, hcc_precision, hcc_dice, \
     cyst_recall, cyst_precision, cyst_dice, \
     angioma_recall, angioma_precision, angioma_dice
+from utils import send_line_notification
 
 # main.pyてきなやつ
 # wpがあれば、ここからモデルの重みをロードする。
@@ -84,6 +85,12 @@ def ConstructCallback(model, WEIGHT_SAVE_DIR):
 vscodeから実行するとおかしくなっちゃう
 '''
 
+def split_train_val(fold=0):
+    train=[['001', '002', '003', '004', '005', '006', '007', '008', '009', '010', '011', '012', '013', '016', '017', '018', '019', '025', '028', '029', '030', '031', '032', '039'], ['014', '015', '021', '022', '023', '024', '026', '033', '034', '035', '036', '037', '038', '040', '041', '044', '045', '046', '047', '051', '055', '057', '064', '065'], ['053', '058', '060', '061', '062', '063', '066', '067', '068', '069', '071', '072', '073', '074', '076', '077', '078', '079', '083', '086', '093', '094'], ['082', '088', '090', '095', '096', '097', '098', '101', '102', '103', '104', '105', '107', '109', '112', '113', '117', '118', '122', '123', '125', '130']]
+    valid=train.pop(fold)
+    #flatten
+    train=sum(train,[])
+    return train,valid
 
 def main(args):
     config = ConfigGpu(args.gpu_number)
@@ -93,8 +100,8 @@ def main(args):
         DATA_DIR = yml['DIR']['DATA']
         WEIGHT_SAVE_DIR = yml['DIR']['OWN']
         WEIGHT_PATH=yml['PRED_WEIGHT'] if 'PRED_WEIGHT' in yml else None
-        train_cid = yml['CID']['TRAIN']
-        val_cid = yml['CID']['VAL']
+        train_cid = yml['CID']['TRAIN'] if not 'FOLD' in yml else split_train_val(yml['FOLD'])[0]
+        val_cid = yml['CID']['VAL'] if not 'FOLD' in yml else split_train_val(yml['FOLD'])[1]
         train_patch = yml['PATCH_DIR']['TRAIN']
         val_patch = yml['PATCH_DIR']['VAL']
         patch_shape = yml['PATCH_SHAPE']
@@ -152,6 +159,8 @@ def main(args):
                             validation_data=valid_generator, validation_steps=len(valid_generator),
                             callbacks=callbacks, workers=6, max_queue_size=12, use_multiprocessing=True,
                             epochs=epochs, shuffle=False)
+
+        send_line_notification('finish:',args.setting_yml_path)
 
 
 if __name__ == '__main__':

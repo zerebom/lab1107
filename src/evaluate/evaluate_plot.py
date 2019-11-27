@@ -74,18 +74,22 @@ def plot_whole_lesion_dice(df,save_dir=None):
     if save_dir:
         plt.savefig(f'{save_dir}/whole_dice.png')
 
+
 def plot_each_lesion_dice(df,save_dir=None):
-    for leison in ['kidney','CCRCC','Cyst']:
-        plt.figure(figsize=(12,6))
-        df2=df.query('existence==1 & label_name==@leison')[['dice','cid']].sort_values('dice').reset_index(drop=True)
+    for leison,c_col in zip(['kidney','CCRCC','Cyst'],['count','count_CCR','count_cys']):
+        plt.figure(figsize=(15,6))
+        df2=df.query('existence==1 & label_name==@leison')[['dice','cid',c_col]].sort_values('dice').reset_index(drop=True)
         #df2=df.loc[df['label_name']==leison,['dice','cid']].sort_values('dice').reset_index(drop=True)
-        plt.rcParams["font.size"] = 22
-        sns.barplot(x='cid',data=df2,y='dice',order=df2['cid'],palette='GnBu_d')
+        plt.rcParams["font.size"] = 18
+        g=sns.barplot(x='cid',data=df2,y='dice',order=df2['cid'],palette='GnBu_d')
+        for index,row in df2.iterrows():
+            g.text(index,row.dice+0.01,f'{str(row[c_col])[0]}e{len(str(int(row[c_col])))}',color='black',ha='center')
         plt.title(f'{leison}_dice')
         plt.ylim(0,1)
         plt.tight_layout()
         if save_dir:
             plt.savefig(f'{save_dir}/{leison}_dice.png')
+        plt.show()
 
 def scatter_plot(df,x,y,text,size,title):
     fig = px.scatter(df, x=x, y=y,text=text, size=size,size_max=30,hover_name='cid')
@@ -98,7 +102,7 @@ def scatter_plot(df,x,y,text,size,title):
 
 def main(args):
     statistics_path='/home/kakeya/Desktop/higuchi/20191021/output/statistics.csv'
-    statistics_path='/home/higuchi/Desktop/higuchi/lab1107/output/csv/statistics.csv'
+    #statistics_path='/home/higuchi/Desktop/higuchi/lab1107/output/csv/statistics.csv'
     with open(args.setting_yml_path) as file:
         yml = yaml.load(file)
         ROOT_DIR = yml['DIR']['ROOT']
@@ -107,6 +111,7 @@ def main(args):
 
 
     epoch_results_path= sorted(OWN_DIR.glob(f'**/epoch_results.csv'))[-1]
+    print('use_epoch_result_csv:',epoch_results_path)
     epoch_df=pd.read_csv(epoch_results_path)
     if not Path(OWN_DIR/'plot').is_dir():
         Path(OWN_DIR/'plot').mkdir()

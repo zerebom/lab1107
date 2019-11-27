@@ -29,22 +29,20 @@ sudo python3 /home/kakeya/Desktop/higuchi/20191107/src/create_hist_equal_patch.p
 pwd
 
 done
-大体30分くらいで処理が終わる。
 '''
 
 '''
+保存先ディレクトリが違う場所にある場合
 for i in `seq -w 000 160`; do
 cd /home/kakeya/Desktop/higuchi/data/00${i}
-sudo python3 /home/kakeya/Desktop/higuchi/20191107/src/create_hist_equal_patch.py kld_SE2.nii.gz kld_SE3.nii.gz kidney.nii.gz CCRCC.nii.gz cyst.nii.gz -sd /home/kakeya/ssd/data/00${i} --suffix KLD --size 60 60 20
-sudo python3 /home/kakeya/Desktop/higuchi/20191107/src/create_hist_equal_patch.py kld_SE2.nii.gz kld_SE3.nii.gz kidney.nii.gz CCRCC.nii.gz cyst.nii.gz -sd /home/kakeya/ssd/data/00${i} --suffix KLD --size 48 48 16
+sudo python3 /home/kakeya/Desktop/higuchi/20191107/src/create_hist_equal_patch.py kld_inkid_SE2.nii.gz kld_SE3.nii.gz kidney.nii.gz CCRCC.nii.gz cyst.nii.gz -sd /home/kakeya/ssd/data/00${i} --suffix KLD_inkid --size 60 60 20
+sudo python3 /home/kakeya/Desktop/higuchi/20191107/src/create_hist_equal_patch.py kld_inkid_SE2.nii.gz kld_SE3.nii.gz kidney.nii.gz CCRCC.nii.gz cyst.nii.gz -sd /home/kakeya/ssd/data/00${i} --suffix KLD_inkid --size 48 48 16
 pwd
 
 done
-大体30分くらいで処理が終わる。
 '''
 
 import argparse
-
 
 def ParseArgs():
     parser = argparse.ArgumentParser()
