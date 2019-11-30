@@ -73,7 +73,7 @@ def plot_whole_lesion_dice(df,save_dir=None):
     plt.tight_layout()
     if save_dir:
         plt.savefig(f'{save_dir}/whole_dice.png')
-
+  
 
 def plot_each_lesion_dice(df,save_dir=None):
     for leison,c_col in zip(['kidney','CCRCC','Cyst'],['count','count_CCR','count_cys']):
@@ -89,7 +89,7 @@ def plot_each_lesion_dice(df,save_dir=None):
         plt.tight_layout()
         if save_dir:
             plt.savefig(f'{save_dir}/{leison}_dice.png')
-        plt.show()
+
 
 def scatter_plot(df,x,y,text,size,title):
     fig = px.scatter(df, x=x, y=y,text=text, size=size,size_max=30,hover_name='cid')
@@ -120,14 +120,16 @@ def main(args):
     lesion_path=OWN_DIR/'lesion_evaluation.csv'
     lesion_df=pd.read_csv(lesion_path)
     lesion_df=preprocess_lesion_df(lesion_df)
+    
 
-    plot_whole_lesion_dice(lesion_df,save_dir=OWN_DIR/'plot/')
-    plot_each_lesion_dice(lesion_df,save_dir=OWN_DIR/'plot/')
+
 
     
     st_df=pd.read_csv(statistics_path,index_col=0).reset_index().rename(columns={'index':'cid'})
 
     lesion_df=lesion_df.merge(st_df,how='left',on='cid')
+    plot_whole_lesion_dice(lesion_df,save_dir=OWN_DIR/'plot/')
+    plot_each_lesion_dice(lesion_df,save_dir=OWN_DIR/'plot/')
     ccr_cols=[col for col in lesion_df.columns if  'CCR' in col]
     cys_cols=[col for col in lesion_df.columns if  'cys' in col]
     important_cols=['cid','dice','recall','precision','count','lumi_mean']
