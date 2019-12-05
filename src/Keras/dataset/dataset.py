@@ -40,12 +40,14 @@ class Loader():
 class Generator(Sequence):
     def __init__(self, dataset, batch_size=4, nclasses=2,
                  enable_random_crop=True, enable_random_flip=False, enable_random_norm=False,
-                 crop_size=(48, 48, 32), threshold=400, weight_method=None):
+                 crop_size=(48, 48, 32), threshold=400, weight_method=None,clip=None):
         self.dataset = dataset.copy()
         self.batch_size = batch_size
         self.nclasses = nclasses
         self.threshold = threshold
         self.weight_method = weight_method
+        #[-79,304]
+        self.clip=clip
 
         self.data_cnt = 0
         self.indices = []
@@ -106,7 +108,8 @@ class Generator(Sequence):
         X, Y = self.__augment(X, Y, self.enable_random_norm, self.__random_norm)
         Y = to_categorical(Y, num_classes=self.nclasses)
         #print('medium',X.shape,Y.shape)
-
+        if self.clip:
+            X=np.clip(self.clip[0],self.clip[1])
         if self.weight_method:
             Y = self.weight_method(X, Y, self.nclasses)
         

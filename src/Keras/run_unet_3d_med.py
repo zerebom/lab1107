@@ -124,6 +124,7 @@ def main(args):
         counts = np.cbrt(np.where(counts != 0, counts, 1))
         Y = Y * 1e0 / counts
         return Y
+        
     print(BATCH_GENERATOR, type(BATCH_GENERATOR))
     train_generator = BATCH_GENERATOR(train_dataset, batch_size=BATCH_SIZE, nclasses=4, enable_random_crop=True,
                                       crop_size=(48, 48, 16), threshold=float('inf'), weight_method=weight_method)
