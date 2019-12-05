@@ -102,7 +102,8 @@ def scatter_plot(df,x,y,text,size,title):
 
 def main(args):
     statistics_path='/home/kakeya/Desktop/higuchi/20191021/output/statistics.csv'
-    #statistics_path='/home/higuchi/Desktop/higuchi/lab1107/output/csv/statistics.csv'
+    if not Path(statistics_path).is_file():
+        statistics_path='/home/higuchi/Desktop/higuchi/lab1107/output/csv/statistics.csv'
     with open(args.setting_yml_path) as file:
         yml = yaml.load(file)
         ROOT_DIR = yml['DIR']['ROOT']
