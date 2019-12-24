@@ -162,7 +162,7 @@ def main(args):
     # scatter_plot(ccr_df,'log_kid','log_ccr','cid','dice','CCRCC_dice_with_cid')
     # scatter_plot(cys_df,'log_kid','log_cys','round_dice','dice','cyst_dice_with_dice')
     # scatter_plot(cys_df,'log_kid','log_cys','cid','dice','cyst_dice_with_cid')
-    send_line_notification('plot finish:',args.setting_yml_path)
+    send_line_notification(f'plot finish:{args.setting_yml_path}')
 
 
 if __name__== '__main__':
