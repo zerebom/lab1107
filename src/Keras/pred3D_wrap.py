@@ -33,12 +33,14 @@ def main(args, yml):
     save_dir = f'{OWN_DIR}/res'
     os.makedirs(save_dir, exist_ok=True)
 
-    for patient_id in patient_ids:
+    for i,patient_id in enumerate(patient_ids):
         dir_name = f'{DATA_DIR}/00{patient_id}/'
         mask_path = f'{DATA_DIR}/00{patient_id}/kidney.nii.gz'
         SE2_volume = pathlib.Path(dir_name) / SE2
         SE3_volume = pathlib.Path(dir_name) / SE3
         cmd = f'python3 ./src/Keras/pred3D_unet_med.py {WIGHT_PATH} {SE2_volume} {SE3_volume} -g={args.gpuid} -mask={mask_path} -yml={args.setting_yml_path} --save_dir={save_dir} --outfilename=00{patient_id}.nii.gz --stepscale=2 --class_num=4 --maskfile={mask_path}'
+        if i==0:
+            print(f'\n-----------pred cmd is {cmd}------------\n')
         subprocess.call(cmd.split())
 
 

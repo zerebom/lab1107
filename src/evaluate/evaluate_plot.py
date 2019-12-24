@@ -20,7 +20,8 @@ import os
 import argparse
 import yaml
 import plotly
-
+import sys
+from utils import send_line_notification
 '''
 ymlを書き換えるだけで適切な場所にplotが保存されるようにする。
 出力DFをきれいに書き換える
@@ -161,6 +162,8 @@ def main(args):
     # scatter_plot(ccr_df,'log_kid','log_ccr','cid','dice','CCRCC_dice_with_cid')
     # scatter_plot(cys_df,'log_kid','log_cys','round_dice','dice','cyst_dice_with_dice')
     # scatter_plot(cys_df,'log_kid','log_cys','cid','dice','cyst_dice_with_cid')
+    send_line_notification('plot finish:',args.setting_yml_path)
+
 
 if __name__== '__main__':
     args = ParseArgs()

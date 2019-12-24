@@ -1,0 +1,2 @@
+epoch,angioma_dice,bg_dice,cyst_dice,hcc_dice,loss,val_angioma_dice,val_bg_dice,val_cyst_dice,val_hcc_dice,val_loss
+0,0.10026495,0.9457308,0.2260244,0.79180413,0.006347088636955418,0.2725275,0.89936244,0.22038871,0.754694,0.008585109132285355
