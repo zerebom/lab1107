@@ -55,7 +55,7 @@ def ParseArgs():
     parser.add_argument('-st', '--standardization', action='store_true')
     parser.add_argument("--onehot", help="Whether or not to Onehot Vector is Save data",
                         default=False, action='store_false')
-    parser.add_argument('-sf', "--suffix", type=str, default='hist_equal_05')
+    parser.add_argument('-sf', "--suffix", type=str, default='')
 
     args = parser.parse_args()
     return args
