@@ -82,6 +82,7 @@ class Generator(Sequence):
         the reference of this rule base was recorded in check_data.py
         '''
         tmp_arr = np.array(label_list)
+
         # lable 1+3 ,2+3 ,1+3+5 -> 3
         tmp_arr = np.where(tmp_arr > 5, 5, tmp_arr) 
         # label 1+2 -> 2
@@ -97,11 +98,17 @@ class Generator(Sequence):
         idx_list = self.indices[idx*self.batch_size:(idx+1)*self.batch_size]
         image_list = [np.load(str(image_dataset['path'].iloc[idx])) for idx in idx_list]
         label_list = [np.load(str(label_dataset['path'].iloc[idx])) for idx in idx_list]
-
+        
         X = np.array(image_list)
-        Y = self._decode_binsys_labels(label_list)
-        X=X.astype(np.float32)
+
+        try:
+            Y = self._decode_binsys_labels(label_list)
+        except:
+            Y=np.zeros(np.array(label_list).shape)
+            print([str(label_dataset['path'].iloc[idx]) for idx in idx_list])
         #print('first',X.shape,Y.shape)
+        X=X.astype(np.float32)
+
 
         # flagがTrueならaugmentをする。Xはクロップ、YはNorm
         X, Y = self.__augment(X, Y, self.enable_random_crop, self.__random_crop)

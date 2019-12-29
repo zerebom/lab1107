@@ -22,12 +22,7 @@ from utils import send_line_notification
 # main.pyてきなやつ
 # wpがあれば、ここからモデルの重みをロードする。
 '''
-python3 /home/kakeya/Desktop/higuchi/20191021/Keras/src/run_unet_3d_med.py -wp /home/kakeya/Desktop/higuchi/20191021/Keras/weights-e027_unet_liver_tumor_and_cyst_3cls.hdf5
 
-
-
-python3 run_unet_3d_med.py -ex tutorial -g 1 -wp /home/kakeya/Desktop/higuchi/20191107/experiment/tutorial/2019-11-07_23-30/weights-e016_unet_liver_tumor_and_cyst_3cls.hdf5
-python3 run_unet_3d_med.py -ex single_channel -g 0 -yml /home/kakeya/Desktop/higuchi/20191107/experiment/single_channel/setting.yml
 python3 run_unet_3d_med.py  -g 0 -yml /home/higuchi/Desktop/higuchi/lab1107/experiment/standard05/mini_setting.yml
 c/home/kakeya/Desktop/higuchi/20191107/experiment/lr01_epoch50_100/setting.yml
 
@@ -161,7 +156,7 @@ def main(args):
                             callbacks=callbacks, workers=6, max_queue_size=12, use_multiprocessing=True,
                             epochs=epochs, shuffle=False)
 
-        send_line_notification('finish:',args.setting_yml_path)
+        send_line_notification(f'finish:{args.setting_yml_path}')
 
 
 if __name__ == '__main__':

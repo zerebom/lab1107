@@ -2,7 +2,7 @@
 DIR:
  ROOT: /home/kakeya/Desktop/higuchi/20191107
  DATA: /home/kakeya/ssd/data
- #ぎDATA: /home/kakeya/Desktop/higuchi/data
+ # DATA: /home/kakeya/Desktop/higuchi/data
  OWN: /home/kakeya/Desktop/higuchi/20191107/experiment/KLD_inkid/fold2
 PRED_WEIGHT: /home/kakeya/Desktop/higuchi/20191107/experiment/KLD_inkid/fold2/2019-12-24_12-43/weights-e001.hdf5
 CID:
