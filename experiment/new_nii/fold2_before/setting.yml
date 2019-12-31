@@ -1,7 +1,7 @@
 DIR:
   ROOT: /home/kakeya/Desktop/higuchi/20191107
   DATA: /home/kakeya/ssd/deeds_data
-  OWN: /home/kakeya/Desktop/higuchi/20191107/experiment/new_nii/fold3
+  OWN: /home/kakeya/Desktop/higuchi/20191107/experiment/new_nii/fold2
 CID:
   TRAIN: ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010', '011',
     '012', '013', '017', '018', '019', '025', '028', '029', '030', '031', '032', '039',
@@ -21,3 +21,5 @@ BATCH_SIZE: 16
 LOCAL_HE: false
 STANDARD: false
 GENERATOR: Generator
+FOLD: 2
+PRED_WEIGHT: /home/kakeya/Desktop/higuchi/20191107/experiment/new_nii/fold2/2019-12-28_11-51/weights-e020.hdf5

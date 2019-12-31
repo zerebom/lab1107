@@ -161,4 +161,7 @@ def main(args):
 
 if __name__ == '__main__':
     args = ParseArgs()
-    main(args)
+    try:
+        main(args)
+    except Exception as e:
+        send_line_notification(f'error:{args.setting_yml_path}_{e}')
