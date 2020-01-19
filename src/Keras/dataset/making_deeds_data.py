@@ -2,8 +2,27 @@ import numpy as np
 from pathlib import Path
 import SimpleITK as sitk
 import pandas as pd
+import yaml
+import argparse
+
+'''
+python3 ./src/Keras/dataset/making_deeds_data.py -d /home/kakeya/Desktop/higuchi/data -s /home/kakeya/ssd/deeds_data_130 -m
+'''
+def ParseArgs():
+    # from distutils.util import strtobool
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-d', '--data_dir', type=str,
+                        default='/home/kakeya/ssd/deeds_data')
+    
+    parser.add_argument('-s', '--save_dir', type=str,
+                        default='/home/kakeya/ssd/deeds_data')  
+    parser.add_argument('-m','--make_niigz', action='store_true') 
+
+    args = parser.parse_args()
+    return args
 
 
+        
 class DeedsPreprocessor(object):
     '''
     Deedsを使うときの前処理を行うクラス。
@@ -12,8 +31,16 @@ class DeedsPreprocessor(object):
     - ↑の調整をしたデータを新たにディレクトリを作って保存する。
     '''
 
-    def __init__(self, data_dir, save_dir, st_path,start_id=0, kidney='kidney.nii.gz',
+    def __init__(self, data_dir, save_dir,st_path,df_path='./deeds_statistics2.csv', start_id=0, kidney='kidney.nii.gz',
                  ccrcc='CCRCC.nii.gz', cyst='cyst.nii.gz', SEs=['SE2.nii.gz', 'SE3.nii.gz']):
+        """
+        data_dir...前処理前nii.gzが格納されているディレクトリ
+        data_dir...前処理後nii.gzが格納するディレクトリ
+        st_path...統計データcsvのパス（事前に作っておく必要あり)
+        start_id...前処理をどの患者Idから始めるか（途中で中断したときに用いる）
+        その他...nii.gzの名前
+        """
+
         self.data_dir = data_dir
         self.save_dir = save_dir
         self.kidney = kidney
@@ -23,7 +50,7 @@ class DeedsPreprocessor(object):
         self.st_df = pd.read_csv(st_path)
         self.start_id=start_id
         self.spacing = (0.7, 0.7, 2.0)
-        self.df_path = './deeds_statistics.csv'
+        self.df_path = df_path
         cols = ['index','count', 'count_CCR', 'count_cys', 'lumi_mean']
         # statistics_dfから必要なデータだけを抽出する。
         self.mini_df = self.st_df[cols].reset_index().fillna(0)
@@ -44,7 +71,7 @@ class DeedsPreprocessor(object):
         return img[:, startx:startx + croped_size, startx:startx + croped_size]
 
     @staticmethod
-    def PadCenter(img: np.array, padded_size=(60,512,512):
+    def PadCenter(img: np.array, padded_size=(130,512,512)):
         """
         zyxに並んでいる必要がある。
         Spacing幅を変えたときにxyをpadding
@@ -61,8 +88,9 @@ class DeedsPreprocessor(object):
         l_hw_pad = int(np.ceil(hw_pad_size / 2))
         t_d_pad = d_pad_size // 2
         u_d_pad = int(np.ceil(d_pad_size / 2))
-
-        return np.pad(img, ((t_d_pad, u_d_pad), (r_hw_pad, l_hw_pad), (r_hw_pad, l_hw_pad)), 'minimum')
+        pad_arr= np.pad(img, ((t_d_pad, u_d_pad), (r_hw_pad, l_hw_pad), (r_hw_pad, l_hw_pad)), 'constant',constant_values=(-1024,-1024))
+        return np.clip(pad_arr,-1024,1024)
+        # return np.pad(img, ((t_d_pad, u_d_pad), (r_hw_pad, l_hw_pad), (r_hw_pad, l_hw_pad)), 'minimum')
 
     def get_data(self, path: str, image=True):
         """pathからスペーシング幅を決めて画像とarrayを返す"""
@@ -129,6 +157,7 @@ class DeedsPreprocessor(object):
     
     @staticmethod
     def profile_image(image: sitk):
+        """ロードしたデータの統計量を標準出力する"""
         spacing = image.GetSpacing()
         direction = image.GetDirection()
         size = image.GetSize()
@@ -156,51 +185,7 @@ class DeedsPreprocessor(object):
         whole_save_paths = image_save_paths + label_save_paths
 
         return image_load_paths, image_save_paths, label_load_paths, label_save_paths, whole_save_paths
-
-    def recode_slice_data2df(self):
-        '''deedsをする時に使う統計データを収集する'''
-        df = self.mini_df.copy()
-
-        for col in ['right', 'left', 'slices', 'st', 'en']:
-            df[col] = 0
-
-        cids = self.mini_df['index'].values
-        cids = cids[cids > self.start_id]
-        for i, cid in enumerate(cids):
-            image_load_paths, image_save_paths, label_load_paths,\
-                label_save_paths, whole_save_paths = self.get_data_paths(cid)
-
-            label_datas = [self.get_data(path, image=False) for path in label_load_paths]
-            # パスがあるかどうかのboolとarrayのリスト
-            SE_EXIST = True if sum([Path(path).is_dir() for path in image_load_paths]) == 2 else False
-
-            ccr_arr = label_datas[1][1]
-            kid_arr = label_datas[0][1]
-            kid = label_datas[0][0]
-            whole_label_arr = np.copy(kid_arr)
-
-            if not SE_EXIST or not kid or len(label_datas) == 0:
-                print(f'{cid} is not exist SEs or labels.')
-                continue
-
-            for exist, array in label_datas:
-                if not exist:
-                    continue
-                else:
-                    whole_label_arr = np.logical_or(whole_label_arr, array)
-
-            st, en = self.check_slice_edge(whole_label_arr)
-
-            df.at[i, ['st', 'en']] = st, en
-            # ガンがどっちにあるかを調べている。
-            right = ccr_arr[:, :, 256:]
-            left = ccr_arr[:, :, :256]
-            df.at[i, 'slices'] = ccr_arr.shape[0]
-            df.at[i, 'right'] = 1 if right.sum() > 0 else 0
-            df.at[i, 'left'] = 1 if left.sum() > 0 else 0
-
-        df.to_csv(self.df_path)
-        
+      
     def main(self):
         '''DOING:存在しないときの処理'''
         df = self.mini_df.copy()
@@ -282,8 +267,8 @@ class DeedsPreprocessor(object):
                     print('raw_shape:', array.shape)
                 if array.shape[2] > 512:
                     array = self.CropCenter(array)
-                else:
-                    array = self.PadCenter(array)
+                
+                array = self.PadCenter(array)
                 if count == 0:
                     print('proccessed shape:', array.shape)
                 self.save_niigz(save_path, array)
@@ -297,3 +282,70 @@ class DeedsPreprocessor(object):
             df.at[i, 'left'] = 1 if left.sum() > 0 else 0
 
         df.to_csv(self.df_path)
+
+class DeedsStatisticsRecoder(DeedsPreprocessor):
+    '''
+    Deedsで変形元、変形先のペアを見つけるための統計量を集計するクラス。
+    DeedsPreprocessorのmainを入れ替えただけ。
+    '''
+
+    def __init__(self,data_dir,save_dir,st_path,df_path='./deeds_statistics.csv', \
+                start_id=0, kidney='kidney.nii.gz',
+                ccrcc='CCRCC.nii.gz', cyst='cyst.nii.gz', SEs=['SE2.nii.gz', 'SE3.nii.gz']):
+                
+        super(DeedsStatisticsRecoder,self).__init__(data_dir,save_dir,st_path,df_path,start_id,kidney,ccrcc,cyst,SEs)
+
+    
+    def recode_slice_data2df(self):
+        '''deedsをする時に使う統計データを収集する'''
+        df = self.mini_df.copy()
+        #df初期化
+        for col in ['right', 'left', 'slices', 'st', 'en']:
+            df[col] = 0
+
+        cids = self.mini_df['index'].values
+        cids = cids[cids > self.start_id]
+        for i, cid in enumerate(cids):
+            image_load_paths, image_save_paths, label_load_paths,\
+                label_save_paths, whole_save_paths = self.get_data_paths(cid)
+
+            label_datas = [self.get_data(path, image=False) for path in label_load_paths]
+            # 必須のパスが存在しているかどうか
+            SE_EXIST = True if sum([Path(path).is_file() for path in image_load_paths]) == 2 else False
+
+            ccr_arr = label_datas[1][1]
+            kid_arr = label_datas[0][1]
+            kid = label_datas[0][0]
+            whole_label_arr = np.copy(kid_arr)
+
+            if not SE_EXIST or not kid or len(label_datas) == 0:
+                print(f'{cid} is not exist SEs or labels.')
+                continue
+
+            for exist, array in label_datas:
+                if not exist:
+                    continue
+                else:
+                    whole_label_arr = np.logical_or(whole_label_arr, array)
+
+            st, en = self.check_slice_edge(whole_label_arr)
+
+            df.at[i, ['st', 'en']] = st, en
+            # ガンがどっちにあるかを調べている。
+            right = ccr_arr[:, :, 256:]
+            left = ccr_arr[:, :, :256]
+            df.at[i, 'slices'] = ccr_arr.shape[0]
+            df.at[i, 'right'] = 1 if right.sum() > 0 else 0
+            df.at[i, 'left'] = 1 if left.sum() > 0 else 0
+
+        df.to_csv(self.df_path)
+
+
+if __name__ == "__main__":
+    args=ParseArgs()
+    if args.make_niigz:
+        dp=DeedsPreprocessor(args.data_dir,args.save_dir,'/home/kakeya/Desktop/higuchi/20191107/output/csv/statistics.csv')
+        dp.main()
+    else:
+        dsr=DeedsStatisticsRecoder(args.data_dir,args.save_dir,'/home/kakeya/Desktop/higuchi/20191107/output/csv/statistics.csv')
+        dsr.recode_slice_data2df()
