@@ -105,6 +105,8 @@ def main(args):
         final_lr =yml['FINAL_LR'] if 'FINAL_LR' in yml else 1e-1
         BATCH_SIZE = yml['BATCH_SIZE']
         BATCH_GENERATOR = eval(yml['GENERATOR']) if 'GENERATOR' in yml else Generator
+        SINGLE = True if 'SINGLE' in yml else False
+
 
     # return dataframe require:patch_npy
     loader = Loader(DATA_DIR, patch_dir_name=train_patch)
@@ -122,9 +124,9 @@ def main(args):
         
     print(BATCH_GENERATOR, type(BATCH_GENERATOR))
     train_generator = BATCH_GENERATOR(train_dataset, batch_size=BATCH_SIZE, nclasses=4, enable_random_crop=True,
-                                      crop_size=(48, 48, 16), threshold=float('inf'), weight_method=weight_method)
+                                      crop_size=(48, 48, 16), threshold=float('inf'), weight_method=weight_method,single=SINGLE)
     valid_generator = BATCH_GENERATOR(valid_dataset, batch_size=BATCH_SIZE, nclasses=4, enable_random_crop=False,
-                                      crop_size=(48, 48, 16), threshold=float('inf'), weight_method=weight_method)
+                                      crop_size=(48, 48, 16), threshold=float('inf'), weight_method=weight_method,single=SINGLE)
 
     with tf.Session(config=config) as sess:
         # (self, input_shape, nclasses, use_bn=True, use_dropout=True)
