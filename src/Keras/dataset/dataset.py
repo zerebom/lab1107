@@ -40,7 +40,7 @@ class Loader():
 class Generator(Sequence):
     def __init__(self, dataset, batch_size=4, nclasses=2,
                  enable_random_crop=True, enable_random_flip=False, enable_random_norm=False,
-                 crop_size=(48, 48, 32), threshold=400, weight_method=None,clip=None):
+                 crop_size=(48, 48, 32), threshold=400, weight_method=None,clip=None,single=True):
         self.dataset = dataset.copy()
         self.batch_size = batch_size
         self.nclasses = nclasses
@@ -50,6 +50,7 @@ class Generator(Sequence):
         self.clip=clip
 
         self.data_cnt = 0
+        self.single=single
         self.indices = []
         for patient_id in self.dataset.id.unique():
             # ある患者のdataset
@@ -119,7 +120,9 @@ class Generator(Sequence):
             X=np.clip(self.clip[0],self.clip[1])
         if self.weight_method:
             Y = self.weight_method(X, Y, self.nclasses)
-        
+        if self.single:
+            X=X[:,:,:,:,0]
+            X=X[...,np.newaxis]
 
         return X, Y
 
